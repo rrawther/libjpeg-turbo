@@ -1218,6 +1218,81 @@ DLLEXPORT int tjDecompress2(tjhandle handle, const unsigned char *jpegBuf,
                             int width, int pitch, int height, int pixelFormat,
                             int flags);
 
+/**
+ * Decompress a subregion of JPEG image to an RGB, grayscale, or CMYK image.
+ * @param x1, y1, crop_width, crop_height are the crop region dimensions.
+ * This function doesn't scale the decoded image
+ */
+
+DLLEXPORT int tjDecompress2_partial(tjhandle handle, const unsigned char *jpegBuf,
+                            unsigned long jpegSize, unsigned char *dstBuf,
+                            int width, int pitch, int height, int pixelFormat,
+                            int flags, unsigned int x1, unsigned int y1, 
+                            unsigned int crop_width, unsigned int crop_height);
+
+/**
+ * Decompress a JPEG image to an RGB, grayscale, or CMYK image.
+ *
+ * @param handle a handle to a TurboJPEG decompressor or transformer instance
+ *
+ * @param jpegBuf pointer to a buffer containing the JPEG image to decompress
+ *
+ * @param jpegSize size of the JPEG image (in bytes)
+ *
+ * @param dstBuf pointer to an image buffer that will receive the decompressed
+ * image.  This buffer should normally be <tt>pitch * scaledHeight</tt> bytes
+ * in size, where <tt>scaledHeight</tt> can be determined by calling
+ * #TJSCALED() with the JPEG image height and one of the scaling factors
+ * returned by #tjGetScalingFactors().  The <tt>dstBuf</tt> pointer may also be
+ * used to decompress into a specific region of a larger buffer.
+ *
+ * @param width desired width (in pixels) of the destination image.  If this is
+ * different than the width of the JPEG image being decompressed, then
+ * TurboJPEG will use scaling in the JPEG decompressor to generate the largest
+ * possible image that will fit within the desired width.  If <tt>width</tt> is
+ * set to 0, then only the height will be considered when determining the
+ * scaled image size.
+ *
+ * @param pitch bytes per line in the destination image.  Normally, this is
+ * <tt>scaledWidth * #tjPixelSize[pixelFormat]</tt> if the decompressed image
+ * is unpadded, else <tt>#TJPAD(scaledWidth * #tjPixelSize[pixelFormat])</tt>
+ * if each line of the decompressed image is padded to the nearest 32-bit
+ * boundary, as is the case for Windows bitmaps.  (NOTE: <tt>scaledWidth</tt>
+ * can be determined by calling #TJSCALED() with the JPEG image width and one
+ * of the scaling factors returned by #tjGetScalingFactors().)  You can also be
+ * clever and use the pitch parameter to skip lines, etc.  Setting this
+ * parameter to 0 is the equivalent of setting it to
+ * <tt>scaledWidth * #tjPixelSize[pixelFormat]</tt>.
+ *
+ * @param height desired height (in pixels) of the destination image.  If this
+ * is different than the height of the JPEG image being decompressed, then
+ * TurboJPEG will use scaling in the JPEG decompressor to generate the largest
+ * possible image that will fit within the desired height.  If <tt>height</tt>
+ * is set to 0, then only the width will be considered when determining the
+ * scaled image size.
+ *
+ * @param pixelFormat pixel format of the destination image (see @ref
+ * TJPF "Pixel formats".)
+ *
+ * @param flags the bitwise OR of one or more of the @ref TJFLAG_ACCURATEDCT
+ * "flags"
+ *
+ * @param crop_width, crop_height: output will be cropped to this dimension and scaled to fit destination size
+ * "flags"
+ *
+ * @return 0 if successful, or -1 if an error occurred (see #tjGetErrorStr2()
+ * and #tjGetErrorCode().)
+ */
+
+/**
+ * Decompress a subregion of JPEG image to an RGB, grayscale, or CMYK image and scale to output size.
+ */
+
+DLLEXPORT int tjDecompress2_partial_scale(tjhandle handle, const unsigned char *jpegBuf,
+                            unsigned long jpegSize, unsigned char *dstBuf,
+                            int width, int pitch, int height, int pixelFormat,
+                            int flags, unsigned int crop_width, unsigned int crop_height);
+
 
 /**
  * Decompress a JPEG image to a YUV planar image.  This function performs JPEG
