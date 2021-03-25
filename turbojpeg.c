@@ -1317,10 +1317,11 @@ bailout:
 }
 
 DLLEXPORT int tjDecompress2_partial(tjhandle handle, const unsigned char *jpegBuf,
-                            unsigned long jpegSize, unsigned char *dstBuf,
-                            int width, int pitch, int height, int pixelFormat,
-                            int flags, unsigned int crop_x, unsigned int crop_y,
-                            unsigned int crop_width, unsigned int crop_height)
+                                    unsigned long jpegSize, unsigned char *dstBuf,
+                                    int width, int pitch, int height, int pixelFormat,
+                                    int flags, unsigned int *crop_x_diff, unsigned int *crop_width_diff,
+                                    unsigned int crop_x, unsigned int crop_y,
+                                    unsigned int crop_width, unsigned int crop_height)
 {
   JSAMPROW *row_pointer = NULL;
   int i, retval = 0, jpegwidth, jpegheight, scaledw, scaledh;
@@ -1329,17 +1330,17 @@ DLLEXPORT int tjDecompress2_partial(tjhandle handle, const unsigned char *jpegBu
   GET_DINSTANCE(handle);
   this->jerr.stopOnWarning = (flags & TJFLAG_STOPONWARNING) ? TRUE : FALSE;
   if ((this->init & DECOMPRESS) == 0)
-    THROW("tjDecompress2_partial(): Instance has not been initialized for decompression");
+  THROW("tjDecompress2_partial(): Instance has not been initialized for decompression");
 
   if (jpegBuf == NULL || jpegSize <= 0 || dstBuf == NULL || width < 0 ||
-      pitch < 0 || height < 0 || pixelFormat < 0 || pixelFormat >= TJ_NUMPF)
-    THROW("tjDecompress2_partial(): Invalid argument");
+    pitch < 0 || height < 0 || pixelFormat < 0 || pixelFormat >= TJ_NUMPF)
+  THROW("tjDecompress2_partial(): Invalid argument");
 
-#ifndef NO_PUTENV
+  #ifndef NO_PUTENV
   if (flags & TJFLAG_FORCEMMX) putenv("JSIMD_FORCEMMX=1");
   else if (flags & TJFLAG_FORCESSE) putenv("JSIMD_FORCESSE=1");
   else if (flags & TJFLAG_FORCESSE2) putenv("JSIMD_FORCESSE2=1");
-#endif
+  #endif
 
   if (setjmp(this->jerr.setjmp_buffer)) {
     /* If we get here, the JPEG code has signaled an error. */
@@ -1355,22 +1356,23 @@ DLLEXPORT int tjDecompress2_partial(tjhandle handle, const unsigned char *jpegBu
   jpeg_start_decompress(dinfo);
 
   /* Check for valid crop dimensions.  We cannot check these values until
-   * after jpeg_start_decompress() is called.
-   */
+      * after jpeg_start_decompress() is called.
+      */
   if (crop_x + crop_width > dinfo->output_width ||
-      crop_y + crop_height > dinfo->output_height) {
+    crop_y + crop_height > dinfo->output_height) {
     fprintf(stderr, "crop dimensions %d x %d exceed image dimensions %d x %d \n",
-                     crop_width, crop_height, dinfo->output_width, dinfo->output_height);
+            crop_width, crop_height, dinfo->output_width, dinfo->output_height);
     exit(EXIT_FAILURE);
   }
 
   jpeg_crop_scanline(dinfo, &crop_x, &crop_width);
+  *crop_x_diff = crop_x;
+  *crop_width_diff = crop_width;
 
   if (pitch == 0) pitch = dinfo->output_width * tjPixelSize[pixelFormat];
 
-  if ((row_pointer =
-       (JSAMPROW *)malloc(sizeof(JSAMPROW) * dinfo->output_height)) == NULL)
-    THROW("tjDecompress2_partial(): Memory allocation failure");
+  if ((row_pointer = (JSAMPROW *)malloc(sizeof(JSAMPROW) * dinfo->output_height)) == NULL)
+      THROW("tjDecompress2_partial(): Memory allocation failure");
   if (setjmp(this->jerr.setjmp_buffer)) {
     /* If we get here, the JPEG code has signaled an error. */
     retval = -1;  goto bailout;
@@ -1380,24 +1382,24 @@ DLLEXPORT int tjDecompress2_partial(tjhandle handle, const unsigned char *jpegBu
       row_pointer[i] = &dstBuf[(dinfo->output_height - i - 1) * (size_t)pitch];
     else
       row_pointer[i] = &dstBuf[i * (size_t)pitch];
-  }
+}
 
-  /* Process data */
-  jpeg_skip_scanlines(dinfo, crop_y);
-  while (dinfo->output_scanline <  crop_y + crop_height) {
+/* Process data */
+jpeg_skip_scanlines(dinfo, crop_y);
+while (dinfo->output_scanline <  crop_y + crop_height) {
     num_scanlines = jpeg_read_scanlines(dinfo,  &row_pointer[dinfo->output_scanline],
-                                         crop_y + crop_height - dinfo->output_scanline);
-  }
-  jpeg_skip_scanlines(dinfo, dinfo->output_height - crop_y - crop_height);
+                                        crop_y + crop_height - dinfo->output_scanline);
+}
+jpeg_skip_scanlines(dinfo, dinfo->output_height - crop_y - crop_height);
 
-  jpeg_finish_decompress(dinfo);
+jpeg_finish_decompress(dinfo);
 
 bailout:
-  if (dinfo->global_state > DSTATE_START) jpeg_abort_decompress(dinfo);
-  if (row_pointer) free(row_pointer);
-  if (this->jerr.warning) retval = -1;
-  this->jerr.stopOnWarning = FALSE;
-  return retval;
+if (dinfo->global_state > DSTATE_START) jpeg_abort_decompress(dinfo);
+if (row_pointer) free(row_pointer);
+if (this->jerr.warning) retval = -1;
+this->jerr.stopOnWarning = FALSE;
+return retval;
 }
 
 DLLEXPORT int tjDecompress2_partial_scale(tjhandle handle, const unsigned char *jpegBuf,
